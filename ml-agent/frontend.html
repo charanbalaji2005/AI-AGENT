@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ML Agent Tester</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Clash+Display:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #f5f2eb;
+  --surface: #fffef9;
+  --border: #e0d9cc;
+  --border-dark: #c8bfaf;
+  --ink: #1a1612;
+  --ink2: #4a4540;
+  --ink3: #8a8078;
+  --accent: #d4502a;
+  --accent2: #2a7dd4;
+  --green: #2a8c5a;
+  --amber: #c47d10;
+  --red: #c42a2a;
+  --tag-bg: #ede8df;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Mono', monospace;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(212,80,42,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(42,125,212,0.04) 0%, transparent 50%);
+}
+
+/* NOISE OVERLAY */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+.wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+
+/* HEADER */
+header { margin-bottom: 40px; }
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.title-block h1 {
+  font-family: 'Clash Display', sans-serif;
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  color: var(--ink);
+}
+.title-block h1 span { color: var(--accent); }
+.subtitle { color: var(--ink3); font-size: 12px; margin-top: 6px; letter-spacing: 0.5px; }
+
+.api-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.api-bar input {
+  background: transparent; border: none; outline: none;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  color: var(--ink); width: 220px;
+}
+.api-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; flex-shrink: 0; transition: background .3s; }
+.api-dot.ok { background: var(--green); }
+.api-dot.err { background: var(--red); }
+.api-dot.checking { background: var(--amber); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 28px; }
+.tab {
+  padding: 10px 20px; font-family: 'DM Mono', monospace; font-size: 12px;
+  border: none; background: transparent; cursor: pointer; color: var(--ink3);
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: all .2s; letter-spacing: 0.5px;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+/* PANELS */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* CARD */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 16px; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { font-size: 16px; }
+
+/* INPUTS */
+textarea, input[type=text] {
+  width: 100%; padding: 12px 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 13px;
+  color: var(--ink); outline: none; resize: vertical;
+  transition: border-color .2s;
+}
+textarea:focus, input[type=text]:focus { border-color: var(--accent); }
+textarea { min-height: 90px; }
+
+label { display: block; font-size: 11px; color: var(--ink3); margin-bottom: 6px; letter-spacing: 0.5px; }
+
+.field { margin-bottom: 16px; }
+
+.row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.row .field { flex: 1; min-width: 140px; }
+
+select {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 12px;
+  color: var(--ink); outline: none; cursor: pointer;
+}
+
+/* BUTTONS */
+.btn {
+  padding: 11px 22px; border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s; letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--ink); color: var(--bg); }
+.btn-primary:hover { background: var(--accent); }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { background: var(--border-dark); cursor: not-allowed; }
+.btn-outline {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--border-dark);
+}
+.btn-outline:hover { border-color: var(--ink); }
+.btn-sm { padding: 7px 14px; font-size: 11px; }
+
+/* RESULT BOX */
+.result-box {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: none;
+}
+.result-box.visible { display: block; }
+.result-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--tag-bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--ink3);
+}
+.result-status { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.result-status.ok { color: var(--green); }
+.result-status.err { color: var(--red); }
+.result-body { padding: 16px; }
+
+/* PREDICTION BARS */
+.pred-item { margin-bottom: 12px; }
+.pred-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.pred-label { font-size: 13px; font-weight: 500; color: var(--ink); }
+.pred-score { font-size: 12px; color: var(--ink3); }
+.pred-bar-bg { background: var(--tag-bg); border-radius: 4px; height: 6px; overflow: hidden; }
+.pred-bar { height: 6px; border-radius: 4px; background: var(--accent); transition: width .6s cubic-bezier(.4,0,.2,1); }
+.pred-bar.top { background: var(--green); }
+
+.top-label-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green); color: #fff;
+  border-radius: 6px; padding: 8px 14px;
+  font-size: 14px; font-weight: 500; margin-bottom: 16px;
+}
+
+/* BATCH TABLE */
+.batch-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.batch-table th {
+  text-align: left; padding: 8px 12px;
+  background: var(--tag-bg); color: var(--ink3);
+  border-bottom: 1px solid var(--border); font-weight: 400;
+}
+.batch-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.batch-table tr:last-child td { border-bottom: none; }
+.batch-table tr:hover td { background: var(--tag-bg); }
+.conf-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; background: var(--tag-bg); color: var(--ink2);
+}
+.conf-badge.high { background: #d4edda; color: var(--green); }
+.conf-badge.med  { background: #fff3cd; color: var(--amber); }
+.conf-badge.low  { background: #f8d7da; color: var(--red); }
+
+/* STATUS PANEL */
+.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px;
+}
+.stat-val { font-family: 'Clash Display', sans-serif; font-size: 22px; font-weight: 700; color: var(--ink); }
+.stat-key { font-size: 10px; color: var(--ink3); margin-top: 3px; text-transform: uppercase; letter-spacing: 1px; }
+
+.class-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.class-tag {
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--ink2);
+}
+
+/* JSON viewer */
+.json-raw {
+  background: var(--tag-bg); border-radius: 8px; padding: 14px;
+  font-size: 11px; line-height: 1.6; overflow-x: auto;
+  color: var(--ink2); white-space: pre-wrap; word-break: break-all;
+}
+
+/* TRAIN PANEL */
+.train-log {
+  background: #1a1612; color: #c8bfaf;
+  border-radius: 8px; padding: 16px;
+  font-size: 12px; line-height: 1.7;
+  min-height: 80px; max-height: 300px;
+  overflow-y: auto; white-space: pre-wrap;
+}
+.train-log .ok  { color: #2a8c5a; }
+.train-log .err { color: #c42a2a; }
+.train-log .info { color: #2a7dd4; }
+
+/* LATENCY */
+.latency { font-size: 11px; color: var(--ink3); }
+
+/* Quick examples */
+.examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ex-chip {
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 16px; padding: 5px 12px; font-size: 11px;
+  cursor: pointer; transition: all .15s; color: var(--ink2);
+}
+.ex-chip:hover { border-color: var(--accent); color: var(--accent); background: #fdf0ec; }
+
+.spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-top">
+      <div class="title-block">
+        <h1>ML Agent <span>Tester</span></h1>
+        <div class="subtitle">Code / Software · Topic Classifier · FastAPI Backend</div>
+      </div>
+      <div class="api-bar">
+        <div class="api-dot" id="apiDot"></div>
+        <span id="apiStatus" style="color:var(--ink3);font-size:11px;">API:</span>
+        <input type="text" id="apiUrl" value="http://127.0.0.1:8000" style="width:180px"/>
+        <button class="btn btn-outline btn-sm" onclick="checkHealth()">Ping</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('predict', this)">Single Predict</button>
+    <button class="tab" onclick="switchTab('batch', this)">Batch Predict</button>
+    <button class="tab" onclick="switchTab('status', this)">Model Status</button>
+    <button class="tab" onclick="switchTab('train', this)">Re-Train</button>
+  </div>
+
+  <!-- ── TAB: SINGLE PREDICT ── -->
+  <div class="panel active" id="tab-predict">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔍</span> Classify Text</div>
+
+      <div class="field">
+        <label>INPUT TEXT</label>
+        <textarea id="predictText" placeholder="e.g. How do I implement a binary search tree?"></textarea>
+      </div>
+
+      <div class="examples" id="quickExamples">
+        <span style="font-size:11px;color:var(--ink3);margin-right:4px;">Try:</span>
+      </div>
+
+      <hr class="divider"/>
+
+      <div class="row">
+        <div class="field" style="max-width:140px;">
+          <label>TOP-K RESULTS</label>
+          <select id="topK">
+            <option value="1">Top 1</option>
+            <option value="3" selected>Top 3</option>
+            <option value="5">Top 5</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="predictBtn" onclick="runPredict()">▶ Predict</button>
+      </div>
+
+      <div class="result-box" id="predictResult">
+        <div class="result-header">
+          <div class="result-status" id="predictStatus"></div>
+          <div class="latency" id="predictLatency"></div>
+        </div>
+        <div class="result-body" id="predictBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: BATCH PREDICT ── -->
+  <div class="panel" id="tab-batch">
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> Batch Classify</div>
+      <div class="field">
+        <label>ONE TEXT PER LINE</label>
+        <textarea id="batchText" style="min-height:160px;" placeholder="How do I reverse a linked list?
+What is gradient descent?
+Explain REST APIs
+How does DNS work?"></textarea>
+      </div>
+      <button class="btn btn-primary" id="batchBtn" onclick="runBatch()">▶ Run Batch</button>
+
+      <div class="result-box" id="batchResult">
+        <div class="result-header">
+          <div class="result-status" id="batchStatus"></div>
+          <div class="latency" id="batchLatency"></div>
+        </div>
+        <div class="result-body" id="batchBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: MODEL STATUS ── -->
+  <div class="panel" id="tab-status">
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Model Info</div>
+      <button class="btn btn-primary" onclick="loadModelInfo()" style="margin-bottom:16px;">↻ Refresh</button>
+      <div id="modelInfoArea"><div style="color:var(--ink3);font-size:12px;">Click Refresh to load model info.</div></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: RETRAIN ── -->
+  <div class="panel" id="tab-train">
+    <div class="card">
+      <div class="card-title"><span class="icon">🚀</span> Trigger Re-Training</div>
+      <div class="field">
+        <label>SELECT MODEL</label>
+        <select id="trainModel">
+          <option value="all">all — train all models, pick best</option>
+          <option value="logreg">logreg — Logistic Regression (fast)</option>
+          <option value="svm">svm — Linear SVM (accurate)</option>
+          <option value="naive_bayes">naive_bayes — Naïve Bayes (very fast)</option>
+          <option value="random_forest">random_forest — Random Forest</option>
+          <option value="gradient_boost">gradient_boost — Gradient Boosting</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="trainBtn" onclick="triggerTrain()">▶ Start Training</button>
+        <button class="btn btn-outline" onclick="pollTrainStatus()">↻ Check Status</button>
+      </div>
+      <div style="margin-top:16px;">
+        <label>TRAINING LOG</label>
+        <div class="train-log" id="trainLog">Waiting for training to start...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const getBase = () => document.getElementById('apiUrl').value.replace(/\/$/, '');
+const apiDot  = document.getElementById('apiDot');
+const apiStatusEl = document.getElementById('apiStatus');
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'status') loadModelInfo();
+}
+
+// ── Health check ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  apiDot.className = 'api-dot checking';
+  apiStatusEl.textContent = 'checking…';
+  try {
+    const r = await fetch(getBase() + '/');
+    const d = await r.json();
+    apiDot.className = 'api-dot ok';
+    apiStatusEl.textContent = d.model_loaded ? `API · model: ${d.model_name}` : 'API · no model';
+    loadExamples(d.classes || []);
+  } catch {
+    apiDot.className = 'api-dot err';
+    apiStatusEl.textContent = 'API · offline';
+  }
+}
+
+function loadExamples(classes) {
+  const samples = {
+    algorithms: 'How does quicksort work?',
+    data_structures: 'What is a linked list?',
+    machine_learning: 'Explain gradient descent',
+    web_development: 'What is a REST API?',
+    databases: 'What is a foreign key?',
+    networking: 'How does DNS work?',
+    devops: 'What is Docker?',
+  };
+  const box = document.getElementById('quickExamples');
+  box.innerHTML = '<span style="font-size:11px;color:var(--ink3);margin-right:4px;">Try:</span>';
+  (classes.length ? classes : Object.keys(samples)).forEach(cls => {
+    if (samples[cls]) {
+      const c = document.createElement('span');
+      c.className = 'ex-chip';
+      c.textContent = samples[cls];
+      c.onclick = () => { document.getElementById('predictText').value = samples[cls]; };
+      box.appendChild(c);
+    }
+  });
+}
+
+// ── Single predict ────────────────────────────────────────────────────────────
+async function runPredict() {
+  const text = document.getElementById('predictText').value.trim();
+  if (!text) return alert('Please enter some text.');
+  const topK = parseInt(document.getElementById('topK').value);
+  const btn = document.getElementById('predictBtn');
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+  btn.disabled = true;
+
+  const box    = document.getElementById('predictResult');
+  const status = document.getElementById('predictStatus');
+  const latEl  = document.getElementById('predictLatency');
+  const body   = document.getElementById('predictBody');
+  box.classList.add('visible');
+
+  try {
+    const resp = await fetch(getBase() + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, top_k: topK }),
+    });
+    const d = await resp.json();
+    if (!resp.ok) throw new Error(d.detail || resp.statusText);
+
+    status.className = 'result-status ok';
+    status.innerHTML = '✓ Classified';
+    latEl.textContent = `${d.latency_ms}ms · model: ${d.model_used}`;
+
+    const maxConf = d.predictions[0].confidence;
+    body.innerHTML = `
+      <div class="top-label-badge">✅ ${d.top_label} <span style="opacity:.7;font-size:12px;">${(d.confidence*100).toFixed(1)}%</span></div>
+      ${d.predictions.map((p, i) => `
+        <div class="pred-item">
+          <div class="pred-row">
+            <span class="pred-label">${p.label}</span>
+            <span class="pred-score">${(p.confidence*100).toFixed(2)}%</span>
+          </div>
+          <div class="pred-bar-bg">
+            <div class="pred-bar ${i===0?'top':''}" style="width:${(p.confidence/maxConf*100).toFixed(1)}%"></div>
+          </div>
+        </div>
+      `).join('')}
+    `;
+    apiDot.className = 'api-dot ok';
+  } catch(e) {
+    status.className = 'result-status err';
+    status.textContent = '✗ Error';
+    latEl.textContent = '';
+    body.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+    apiDot.className = 'api-dot err';
+  }
+
+  btn.innerHTML = '▶ Predict';
+  btn.disabled = false;
+}
+
+// ── Batch predict ─────────────────────────────────────────────────────────────
+async function runBatch() {
+  const raw = document.getElementById('batchText').value.trim();
+  if (!raw) return alert('Please enter at least one line of text.');
+  const texts = raw.split('\n').map(t => t.trim()).filter(Boolean);
+  const btn = document.getElementById('batchBtn');
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+  btn.disabled = true;
+
+  const box    = document.getElementById('batchResult');
+  const status = document.getElementById('batchStatus');
+  const latEl  = document.getElementById('batchLatency');
+  const body   = document.getElementById('batchBody');
+  box.classList.add('visible');
+
+  try {
+    const resp = await fetch(getBase() + '/predict/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts, top_k: 1 }),
+    });
+    const d = await resp.json();
+    if (!resp.ok) throw new Error(d.detail || resp.statusText);
+
+    status.className = 'result-status ok';
+    status.textContent = `✓ ${d.count} classified`;
+    latEl.textContent = `${d.latency_ms}ms · model: ${d.model_used}`;
+
+    const rows = d.results.map(r => {
+      const conf = r.confidence;
+      const cls = conf >= 0.6 ? 'high' : conf >= 0.35 ? 'med' : 'low';
+      const short = r.text.length > 55 ? r.text.slice(0,55)+'…' : r.text;
+      return `<tr>
+        <td style="color:var(--ink2);">${short}</td>
+        <td><strong>${r.top_label}</strong></td>
+        <td><span class="conf-badge ${cls}">${(conf*100).toFixed(1)}%</span></td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<table class="batch-table">
+      <thead><tr><th>Text</th><th>Label</th><th>Confidence</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    status.className = 'result-status err';
+    status.textContent = '✗ Error';
+    latEl.textContent = '';
+    body.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+  }
+
+  btn.innerHTML = '▶ Run Batch';
+  btn.disabled = false;
+}
+
+// ── Model info ────────────────────────────────────────────────────────────────
+async function loadModelInfo() {
+  const area = document.getElementById('modelInfoArea');
+  area.innerHTML = '<div style="color:var(--ink3);font-size:12px;">Loading…</div>';
+  try {
+    const r = await fetch(getBase() + '/model/info');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+
+    const m = d.metrics || {};
+    area.innerHTML = `
+      <div class="status-grid">
+        <div class="stat-card">
+          <div class="stat-val">${d.model_name}</div>
+          <div class="stat-key">Active Model</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">${m.accuracy ? (m.accuracy*100).toFixed(1)+'%' : '—'}</div>
+          <div class="stat-key">Accuracy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">${m.f1_weighted ? (m.f1_weighted*100).toFixed(1)+'%' : '—'}</div>
+          <div class="stat-key">F1 Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">${d.num_classes}</div>
+          <div class="stat-key">Classes</div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>LOADED AT</label>
+        <div style="font-size:12px;color:var(--ink2);">${d.loaded_at || '—'}</div>
+      </div>
+      <label>LABEL CLASSES</label>
+      <div class="class-tags">
+        ${d.classes.map(c => `<span class="class-tag">${c}</span>`).join('')}
+      </div>
+      <hr class="divider"/>
+      <label>RAW JSON</label>
+      <div class="json-raw">${JSON.stringify(d, null, 2)}</div>
+    `;
+    apiDot.className = 'api-dot ok';
+  } catch(e) {
+    area.innerHTML = `<div style="color:var(--red);font-size:12px;">Could not load: ${e.message}<br>Make sure the API is running at ${getBase()}</div>`;
+    apiDot.className = 'api-dot err';
+  }
+}
+
+// ── Training ──────────────────────────────────────────────────────────────────
+let trainPollInterval = null;
+
+async function triggerTrain() {
+  const model = document.getElementById('trainModel').value;
+  const btn   = document.getElementById('trainBtn');
+  const log   = document.getElementById('trainLog');
+  btn.innerHTML = '<span class="spinner"></span> Starting…';
+  btn.disabled = true;
+  log.innerHTML = '<span class="info">Starting training job…</span>\n';
+
+  try {
+    const r = await fetch(getBase() + '/train', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    log.innerHTML += `<span class="ok">✓ ${d.message}</span>\n`;
+    startPolling();
+  } catch(e) {
+    log.innerHTML += `<span class="err">✗ ${e.message}</span>\n`;
+  }
+
+  btn.innerHTML = '▶ Start Training';
+  btn.disabled = false;
+}
+
+function startPolling() {
+  if (trainPollInterval) clearInterval(trainPollInterval);
+  trainPollInterval = setInterval(pollTrainStatus, 2000);
+}
+
+async function pollTrainStatus() {
+  const log = document.getElementById('trainLog');
+  try {
+    const r = await fetch(getBase() + '/train/status');
+    const d = await r.json();
+
+    let out = '';
+    if (d.running) {
+      out += '<span class="info">⏳ Training in progress…</span>\n';
+    } else {
+      out += '<span class="ok">✓ Training complete</span>\n';
+      if (trainPollInterval) { clearInterval(trainPollInterval); trainPollInterval = null; }
+    }
+    if (d.last_output) out += d.last_output;
+    if (d.error)       out += `\n<span class="err">Error: ${d.error}</span>`;
+    if (d.model_loaded) out += `\n<span class="ok">🏆 Best model: ${d.model_loaded}</span>`;
+    log.innerHTML = out;
+    log.scrollTop = log.scrollHeight;
+  } catch(e) {
+    log.innerHTML += `<span class="err">Poll error: ${e.message}</span>\n`;
+  }
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const active = document.querySelector('.panel.active');
+    if (active.id === 'tab-predict') runPredict();
+    if (active.id === 'tab-batch')   runBatch();
+  }
+});
+
+// ── Auto-ping on load ─────────────────────────────────────────────────────────
+window.onload = () => {
+  checkHealth();
+  loadExamples([]);
+};
+</script>
+</body>
+</html>

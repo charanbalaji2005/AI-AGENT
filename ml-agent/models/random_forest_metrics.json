@@ -1,0 +1,6 @@
+{
+  "model_name": "random_forest",
+  "accuracy": 0.25,
+  "f1_weighted": 0.2611,
+  "saved_path": "C:\\Users\\neela\\Downloads\\ml-agent\\ml-agent\\training\\../models\\random_forest_pipeline.pkl"
+}

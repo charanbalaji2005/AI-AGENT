@@ -1,0 +1,12 @@
+{
+  "classes": [
+    "algorithms",
+    "data_structures",
+    "databases",
+    "devops",
+    "machine_learning",
+    "networking",
+    "web_development"
+  ],
+  "num_classes": 7
+}
